@@ -1,0 +1,25 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: 安装依赖
+        run: pip install pymupdf python-docx pytest reportlab pillow
+      - name: 语料一致性检查
+        run: python3 scripts/check_artifacts.py --corpus-only
+      - name: 全量测试（含分组 F1 阈值与缺陷复现断言）
+        run: python3 -m pytest tests/ -q
+      - name: 评估落盘与工件自检
+        run: |
+          python3 evals/run_eval.py
+          python3 scripts/check_artifacts.py

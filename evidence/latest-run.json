@@ -1,0 +1,27 @@
+{
+ "single": {
+  "baseline_f1": 1.0,
+  "hardened_f1": 1.0,
+  "hardened_error_modes": {}
+ },
+ "two-col": {
+  "baseline_f1": 0.778,
+  "hardened_f1": 1.0,
+  "hardened_error_modes": {}
+ },
+ "scanned": {
+  "baseline_f1": 0.0,
+  "hardened_f1": 0.923,
+  "hardened_error_modes": {
+   "name": 1,
+   "scalar_extra": 1,
+   "work": 5,
+   "work_fp": 4
+  }
+ },
+ "docx": {
+  "baseline_f1": 1.0,
+  "hardened_f1": 1.0,
+  "hardened_error_modes": {}
+ }
+}

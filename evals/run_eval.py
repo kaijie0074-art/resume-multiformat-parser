@@ -45,14 +45,17 @@ def _true_triples(gt: dict):
     return scalars, works, edus, certs
 
 def _norm(v) -> str:
-    """标点归一化：OCR 输出的全角/半角标点形态不可控，匹配口径必须容错。"""
+    """标点/空白归一化：OCR 输出的全角/半角标点与 CJK-数字边界空格形态不可控，
+    匹配口径必须容错（2026-10-14 Q1 实验：16/16 work desc 失配全部为纯空格差异，
+    见 evidence/research-20261014/q1_noise_breakdown.json）。"""
     import unicodedata
 
     if v is None:
         return ""
     s = unicodedata.normalize("NFKC", str(v))
-    return (s.replace("，", ",").replace("：", ":").replace("（", "(")
-             .replace("）", ")").replace("、", ",").strip())
+    s = (s.replace("，", ",").replace("：", ":").replace("（", "(")
+          .replace("）", ")").replace("、", ","))
+    return "".join(s.split())
 
 
 def _norm_tuple(t):

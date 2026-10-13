@@ -11,7 +11,7 @@
 - **双栏模板 F1=0.78**——公司 A 的职责挂到公司 B 名下
 - **图片型 F1=0.00**——空文本层静默通过，下游 LLM 基于岗位描述编造整份简历
 
-加固后（同一批语料）：双栏 **1.00**、图片型 **0.92**（OCR 路径）、docx 1.00、单栏 1.00。全部数字 `bash scripts/reproduce.sh` 一键复现。
+加固后（同一批语料）：双栏 **1.00**、图片型 **0.99**（VLM 直读，评估口径修复后）/ **1.00**（开启 `RESUME_PARSER_VLM_SCALAR_ZOOM=1` 标量放大复读）、docx 1.00、单栏 1.00。全部数字 `bash scripts/reproduce.sh` 一键复现；难版面（三栏/表格/图标标签）扩展语料同样全 1.00（见深潜研究）。
 
 ## 快速开始
 
@@ -19,7 +19,7 @@
 
 ```bash
 python3 evals/generate_corpus.py   # 生成/校验 35 份语料（已入库，可跳过）
-python3 -m pytest tests/ -q        # 17 用例（含 3 条缺陷复现断言 + F1 阈值）
+python3 -m pytest tests/ -q        # 21 用例（含缺陷复现断言 + F1 阈值 + 研究回归）
 bash scripts/reproduce.sh          # 基线 vs 加固分组 F1 全程复现
 python3 scripts/check_artifacts.py # 工件自检
 ```
@@ -41,6 +41,7 @@ python3 scripts/check_artifacts.py # 工件自检
 - [问题报告 RPI-001/002/003](docs/issue-reports/RPI-001-multiformat-parsing.md)
 - [复现材料](docs/reproductions/README.md) / [设计](docs/design.md)
 - [开源调研引用](docs/open-source-references.md) / [修复引用](docs/repair-references.md)
+- [自主深潜研究 2026-10-14（8 轮问题链：噪声分解→难版面→DPI 曲线→双模型对比→非确定性→形近字→放大复读）](docs/research/deep-dive-20261014.md)
 - [回归记录](docs/regression-records/多格式解析加固-回归记录-20261013.md)
 - [评审意见](docs/reviews/R1-评审意见-20261013.md) / [采纳记录](docs/reviews/采纳记录.md) / [人工评审](docs/reviews/人工评审-代码走查-20261013.md)
 - [负责人验收](docs/acceptance.md) / [覆盖场景说明](docs/test-coverage.md)

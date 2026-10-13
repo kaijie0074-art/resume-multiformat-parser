@@ -77,7 +77,9 @@ def extract_fields(text: str, naive: bool = False) -> Fields:
             d = DEGREE_RE.search(ctx)
             if d:
                 edu.degree = d.group().strip()
-            dr = DATE_RANGE_RE.search(ctx)
+            # 日期窗口放宽到 i+3：三栏/竖排教育块里学校/学历/时间分三行
+            #（2026-10-14 Q2 三栏语料实测：i+2 窗口漏日期致 education 三元组失配）
+            dr = DATE_RANGE_RE.search(ctx) or DATE_RANGE_RE.search(" ".join(lines[i : i + 3]))
             if dr:
                 edu.date_range = dr.group().strip()
             f.educations.append(edu)
@@ -132,3 +134,15 @@ def _fill_work(work: WorkExperience, lines: list[str], i: int,
     if cand and (not only_fill_gaps or not work.description
                  or SECTION_TITLE_RE.search(work.description)):
         work.description = cand
+    if not naive and not work.description and "|" in cur:
+        # VLM/OCR 表格输出常为 markdown 行（| 公司 | 时间 | 职责 |），职责与公司同行。
+        # 邻近行找不到 desc 时从当前行单元格兜底（2026-10-14 Q2 表格语料实测丢失）。
+        # docx 路径 desc 在下一行已有值，不进此分支——行为不变。
+        cells = [c.strip() for c in cur.split("|") if c.strip()]
+        cand_cells = [
+            c for c in cells
+            if c != work.company and not DATE_RANGE_RE.search(c)
+            and not SECTION_TITLE_RE.search(c) and not ORG_RE.search(c) and len(c) >= 4
+        ]
+        if cand_cells:
+            work.description = max(cand_cells, key=len)

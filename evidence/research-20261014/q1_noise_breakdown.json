@@ -1,0 +1,204 @@
+{
+ "model": "glm-4v-flash",
+ "dpi": 150,
+ "n_works": 16,
+ "desc_class_counts": {
+  "ws_only": 16
+ },
+ "company_not_matched": [],
+ "company_matched_but_date_wrong": 0,
+ "nonexact": [
+  {
+   "stem": "scanned-01",
+   "company": "星桥信息技术有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与订单系统开发，日均处理 3000 单",
+    "pred": "参与订单系统开发，日均处理3000单"
+   }
+  },
+  {
+   "stem": "scanned-01",
+   "company": "澄海贸易有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "维护 200 个用户社群，月均转化 150 单",
+    "pred": "维护200个用户社群，月均转化150单"
+   }
+  },
+  {
+   "stem": "scanned-02",
+   "company": "木棉传媒有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与小程序迭代，服务 800 名种子用户",
+    "pred": "参与小程序迭代，服务800名种子用户"
+   }
+  },
+  {
+   "stem": "scanned-03",
+   "company": "汀洲网络科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "维护 200 个用户社群，月均转化 150 单",
+    "pred": "维护200个用户社群，月均转化150单"
+   }
+  },
+  {
+   "stem": "scanned-04",
+   "company": "栗山互联网有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "协助策划 6 场校园活动，触达 5000 人次",
+    "pred": "协助策划6场校园活动，触达5000人次"
+   }
+  },
+  {
+   "stem": "scanned-05",
+   "company": "鹿鸣科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "搭建业务报表，覆盖 120 项核心指标",
+    "pred": "搭建业务报表，覆盖120项核心指标"
+   }
+  },
+  {
+   "stem": "scanned-05",
+   "company": "苇岸智能科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与小程序迭代，服务 800 名种子用户",
+    "pred": "参与小程序迭代，服务800名种子用户"
+   }
+  },
+  {
+   "stem": "scanned-06",
+   "company": "星桥信息技术有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与订单系统开发，日均处理 3000 单",
+    "pred": "参与订单系统开发，日均处理3000单"
+   }
+  },
+  {
+   "stem": "scanned-07",
+   "company": "木棉传媒有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与小程序迭代，服务 800 名种子用户",
+    "pred": "参与小程序迭代，服务800名种子用户"
+   }
+  },
+  {
+   "stem": "scanned-07",
+   "company": "岚山咨询有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "协助策划 6 场校园活动，触达 5000 人次",
+    "pred": "协助策划6场校园活动，触达5000人次"
+   }
+  },
+  {
+   "stem": "scanned-08",
+   "company": "汀洲网络科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "维护 200 个用户社群，月均转化 150 单",
+    "pred": "维护200个用户社群，月均转化150单"
+   }
+  },
+  {
+   "stem": "scanned-08",
+   "company": "云汀数据服务有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "搭建业务报表，覆盖 120 项核心指标",
+    "pred": "搭建业务报表，覆盖120项核心指标"
+   }
+  },
+  {
+   "stem": "scanned-09",
+   "company": "栗山互联网有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "协助策划 6 场校园活动，触达 5000 人次",
+    "pred": "协助策划6场校园活动，触达5000人次"
+   }
+  },
+  {
+   "stem": "scanned-09",
+   "company": "南浦电子商务有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与订单系统开发，日均处理 3000 单",
+    "pred": "参与订单系统开发，日均处理3000单"
+   }
+  },
+  {
+   "stem": "scanned-10",
+   "company": "鹿鸣科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "搭建业务报表，覆盖 120 项核心指标",
+    "pred": "搭建业务报表，覆盖120项核心指标"
+   }
+  },
+  {
+   "stem": "scanned-10",
+   "company": "苇岸智能科技有限公司",
+   "company_found": true,
+   "date_ok": true,
+   "desc_diff": {
+    "cls": "ws_only",
+    "dist": 0,
+    "true": "参与小程序迭代，服务 800 名种子用户",
+    "pred": "参与小程序迭代，服务800名种子用户"
+   }
+  }
+ ]
+}

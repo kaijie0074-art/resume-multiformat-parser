@@ -68,6 +68,12 @@ _VLM_PROMPT = (
     "只输出图中真实存在的内容，不要总结、不要补全、不要纠正。"
 )
 
+# 顶部条带（姓名/联系方式区）二次放大转写指令：标量字段的高分辨率复读
+_STRIP_PROMPT = (
+    "逐字转写这页简历顶部区域的全部文字，保持阅读顺序，不要补全或纠正。"
+)
+
+
 
 def _is_tofu_score(text: str) -> int:
     """豆腐块（□ U+25A1 / 替换字符 U+FFFD）计数，用于择优。"""
@@ -88,8 +94,12 @@ class VlmOcrBackend(OcrBackend):
         self.api_key = os.environ.get("RESUME_PARSER_VLM_API_KEY", "")
         self.url = os.environ.get("RESUME_PARSER_VLM_URL", "")
         self.model = os.environ.get("RESUME_PARSER_VLM_MODEL", "glm-4v-flash")
+        # 标量字段放大复读（默认关）：形近字在小字号整页渲染下处于模型识别边界
+        # （2026-10-14 Q7 实测：整页 150dpi 冯静姝→妹 8/8 错，顶条 2x 放大双模型全对）。
+        # 开启后每页多一次 API 调用（+1 成本），换姓名/联系方式的高分辨率复读。
+        self.scalar_zoom = os.environ.get("RESUME_PARSER_VLM_SCALAR_ZOOM", "") in ("1", "on", "true")
 
-    def _transcribe_page(self, image_png: bytes) -> str:
+    def _transcribe_page(self, image_png: bytes, prompt: str = _VLM_PROMPT) -> str:
         import base64
         import urllib.request
 
@@ -102,7 +112,7 @@ class VlmOcrBackend(OcrBackend):
                         "role": "user",
                         "content": [
                             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
-                            {"type": "text", "text": _VLM_PROMPT},
+                            {"type": "text", "text": prompt},
                         ],
                     }
                 ],
@@ -118,6 +128,20 @@ class VlmOcrBackend(OcrBackend):
             payload = json.loads(resp.read().decode("utf-8"))
         return payload["choices"][0]["message"]["content"].strip()
 
+    def _top_strip_zoomed(self, page, dpi: int = 150, frac: float = 0.12, zoom: float = 2.0) -> str:
+        """顶部条带裁剪 + 放大重转写（姓名/联系方式区的高分辨率复读）。"""
+        import io
+
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(page.get_pixmap(dpi=dpi).tobytes("png")))
+        w, h = img.size
+        strip = img.crop((0, 0, w, int(h * frac)))
+        strip = strip.resize((int(strip.width * zoom), int(strip.height * zoom)), Image.LANCZOS)
+        buf = io.BytesIO()
+        strip.save(buf, format="PNG")
+        return self._transcribe_page(buf.getvalue(), prompt=_STRIP_PROMPT)
+
     def extract(self, pdf_bytes: bytes, stem: str = "") -> str:
         if not (self.api_key and self.url):
             raise OcrNotConfiguredError(
@@ -131,10 +155,14 @@ class VlmOcrBackend(OcrBackend):
             for page in doc:
                 text = self._transcribe_page(page.get_pixmap(dpi=150).tobytes("png"))
                 if _is_tofu(text):
-                    # 端点图片预处理非确定：偶发中文成片丢失（2026-10-13 实测）。
-                    # 升档到 180dpi 重试一次自愈；仍失败则如实保留（路由层兜底）。
+                    # 端点对同一字节输入转写确定（2026-10-14 Q5 实测 6/6 一致）；
+                    # 豆腐块与渲染像素相关 → 升档 180dpi 改变像素即可自愈，仍败则如实保留。
                     retry = self._transcribe_page(page.get_pixmap(dpi=180).tobytes("png"))
                     text = retry if not _is_tofu(retry) else min(text, retry, key=_is_tofu_score)
+                if self.scalar_zoom:
+                    # 条带文本前置：extract_fields 的姓名/电话/邮箱取首个匹配，
+                    # 高分辨率复读结果优先（Q8 验证：F1 0.99→1.00，其余组不受影响）
+                    text = self._top_strip_zoomed(page) + "\n" + text if text else text
                 pages.append(text)
         return "\n".join(p for p in pages if p)
 

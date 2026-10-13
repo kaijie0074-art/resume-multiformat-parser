@@ -1,0 +1,77 @@
+{
+ "scanned-01|glm-4v-flash": {
+  "f1": 1.0,
+  "cer": 0.0357,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-05|glm-4v-flash": {
+  "f1": 1.0,
+  "cer": 0.0247,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-08|glm-4v-flash": {
+  "f1": 1.0,
+  "cer": 0.0462,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-09|glm-4v-flash": {
+  "f1": 1.0,
+  "cer": 0.0351,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-10|glm-4v-flash": {
+  "f1": 0.875,
+  "cer": 0.0298,
+  "tofu": 0,
+  "modes": {
+   "name": 1,
+   "scalar_extra": 1
+  }
+ },
+ "scanned-01|glm-5.3-flash": {
+  "f1": 1.0,
+  "cer": 0.0357,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-05|glm-5.3-flash": {
+  "f1": 1.0,
+  "cer": 0.0247,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-08|glm-5.3-flash": {
+  "f1": 1.0,
+  "cer": 0.0462,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-09|glm-5.3-flash": {
+  "f1": 1.0,
+  "cer": 0.0351,
+  "tofu": 0,
+  "modes": {}
+ },
+ "scanned-10|glm-5.3-flash": {
+  "f1": 1.0,
+  "cer": 0.0238,
+  "tofu": 0,
+  "modes": {}
+ },
+ "_agg": {
+  "glm-4v-flash": {
+   "mean_f1": 0.975,
+   "mean_cer": 0.0343,
+   "mean_latency_s": 3.6
+  },
+  "glm-5.3-flash": {
+   "mean_f1": 1.0,
+   "mean_cer": 0.0331,
+   "mean_latency_s": 4.7
+  }
+ }
+}

@@ -181,3 +181,101 @@ def test_基线在图片型上F1为零():
     stems = [p.stem for p in CORPUS.iterdir() if p.stem.startswith("scanned")]
     f1, *_ = score_group(stems, CORPUS, ROOT / "evals" / "ground_truth", None, "baseline")
     assert f1 == 0.0, "图片型基线必须抽不出字段（空文本层静默失败是 RPI-002 根源）"
+
+
+def test_评分归一化_空白与全角标点形态不敏感():
+    """Q1 实验结论：VLM 转写在 CJK-数字边界丢空格（16/16 失配为纯空格差异），
+    匹配口径必须忽略空白形态，否则把测量噪声当成模型错误。"""
+    sys.path.insert(0, str(ROOT / "evals"))
+    from run_eval import _norm
+
+    assert _norm("参与订单系统开发，日均处理 3000 单") == _norm("参与订单系统开发,日均处理3000单")
+    assert _norm("电话：138 0000 0000") == _norm("电话:13800000000")
+    assert _norm("、") == _norm(",")
+    assert _norm(None) == ""
+
+
+def test_抽取_markdown表格行_职责与公司同行的兜底():
+    """Q2 实验结论：VLM 对表格版面输出 markdown 行（| 公司 | 时间 | 职责 |），
+    邻近行无 desc 时必须从当前行单元格兜底，否则三元组丢失。"""
+    from resume_parser.fields import extract_fields
+
+    text = (
+        "实习经历\n"
+        "| 公司 | 时间 | 职责 |\n"
+        "|------|------|------|\n"
+        "| 汀洲网络科技有限公司 | 2025.03-2025.08 | 维护200个用户社群，月均转化150单 |\n"
+        "技能证书 计算机二级\n"
+    )
+    f = extract_fields(text)
+    assert len(f.work_experiences) == 1
+    w = f.work_experiences[0]
+    assert w.company == "汀洲网络科技有限公司"
+    assert w.date_range == "2025.03-2025.08"
+    assert w.description == "维护200个用户社群，月均转化150单"
+
+
+def test_抽取_三栏竖排教育块_日期窗口放宽到三行():
+    """Q2 实验结论：三栏版面教育信息竖排三行（学校/学历/时间各一行），
+    日期窗口 i+2 漏掉第三行日期致 education 三元组失配。"""
+    from resume_parser.fields import extract_fields
+
+    text = "教育经历\n沪江大学\n本科\n2022.09-2026.06\n技能证书\n普通话二甲\n"
+    f = extract_fields(text)
+    assert len(f.educations) == 1
+    e = f.educations[0]
+    assert (e.school, e.degree, e.date_range) == ("沪江大学", "本科", "2022.09-2026.06")
+
+
+def test_VLM标量放大复读_开启后条带文本前置(monkeypatch):
+    """Q7/Q8 实验结论：整页渲染下形近字姓名（冯静姝→妹）双模型都可能读错，
+    顶部条带 2x 放大复读可救回。开启 RESUME_PARSER_VLM_SCALAR_ZOOM 后
+    条带高分辨率文本必须前置（extract_fields 取首个匹配 → 复读结果优先）。"""
+    from resume_parser.fields import extract_fields
+    from resume_parser.ocr_backend import VlmOcrBackend
+
+    monkeypatch.setenv("RESUME_PARSER_VLM_API_KEY", "k")
+    monkeypatch.setenv("RESUME_PARSER_VLM_URL", "http://x")
+    monkeypatch.setenv("RESUME_PARSER_VLM_SCALAR_ZOOM", "1")
+
+    def fake_transcribe(self, image_png, prompt=None):
+        # 条带图（宽 > 2×高 的横条）返回高分辨率复读；整页图返回带形近字错误的转写
+        import io
+
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(image_png))
+        if img.width > 2 * img.height:
+            return "冯静姝\n电话 13800000009"
+        return "冯静妹\n电话 13800000009 邮箱 user9@example.com\n实习经历\n…"
+
+    monkeypatch.setattr(VlmOcrBackend, "_transcribe_page", fake_transcribe)
+    backend = VlmOcrBackend()
+    assert backend.scalar_zoom is True
+    pdf = (CORPUS / "scanned-10.pdf").read_bytes()
+    text = backend.extract(pdf, stem="scanned-10")
+    assert text.startswith("冯静姝"), "条带复读文本必须前置"
+    f = extract_fields(text)
+    assert f.name == "冯静姝", "放大复读后姓名必须取高分辨率结果"
+
+
+def test_VLM标量放大复读_默认关闭不增加调用(monkeypatch):
+    """默认（未设 env）不开条带复读：行为与旧版一致，每页只 1 次转写。"""
+    from resume_parser.ocr_backend import VlmOcrBackend
+
+    monkeypatch.setenv("RESUME_PARSER_VLM_API_KEY", "k")
+    monkeypatch.setenv("RESUME_PARSER_VLM_URL", "http://x")
+    monkeypatch.delenv("RESUME_PARSER_VLM_SCALAR_ZOOM", raising=False)
+
+    calls = []
+
+    def fake_transcribe(self, image_png, prompt=None):
+        calls.append(image_png)
+        return "冯静妹"
+
+    monkeypatch.setattr(VlmOcrBackend, "_transcribe_page", fake_transcribe)
+    backend = VlmOcrBackend()
+    assert backend.scalar_zoom is False
+    text = backend.extract((CORPUS / "scanned-10.pdf").read_bytes(), stem="scanned-10")
+    assert text == "冯静妹"
+    assert len(calls) == 1, "默认不开启：单页单次调用"

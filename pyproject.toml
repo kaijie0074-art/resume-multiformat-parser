@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "resume-parser"
 version = "1.0.0"
-description = "简历多格式解析路由：文本层判空、双栏重排、docx 表格、OCR 后端抽象与字段级 F1 评估（本地确定性演练）"
+description = "简历多格式解析路由：文本层判空、双栏重排、docx 表格、真实 OCR 后端（Paddle/多模态 LLM）与字段级 F1 评估"
 requires-python = ">=3.10"
 dependencies = [
     "pymupdf>=1.24",

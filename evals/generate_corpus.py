@@ -1,4 +1,4 @@
-"""合成语料生成器：35 份简历 + 字段级 ground truth + 图片型的 OCR 回放语料。
+"""合成语料生成器：35 份简历 + 字段级 ground truth。
 
 全部程序合成、固定随机种子（20261013），无任何真实个人信息。
 
@@ -12,7 +12,6 @@
 输出：
 - evals/corpus/<stem>.{pdf,docx}
 - evals/ground_truth/<stem>.json
-- evals/ocr_fixtures/<scanned-stem>.json（真值的轻度劣化版，模拟 OCR 噪声）
 
 用法：python3 evals/generate_corpus.py [--outdir evals]
 """
@@ -85,15 +84,6 @@ def ground_truth(p: dict) -> dict:
     }
 
 
-def profile_text(p: dict) -> str:
-    """OCR 回放语料的底稿：与版面无关的纯真值文本（供 scanned 路径回放）。"""
-    lines = [p["name"], f"电话 {p['phone']} | 邮箱 {p['email']}",
-             "教育经历", f"{p['school']} {p['degree']} {p['edu_date']}", "实习经历"]
-    for w in p["works"]:
-        lines.append(f"{w['company']} {w['title']} {w['date']}")
-        lines.append(w["desc"])
-    lines.append("技能证书 " + "、".join(p["certs"]))
-    return "\n".join(lines)
 # ---------------- PDF 生成 ----------------
 
 def _register_cn_font() -> None:
@@ -169,7 +159,7 @@ def gen_two_col(path: Path, p: dict) -> None:
         right_lines.append((ry, 9, w["date"])); ry -= 13
         right_lines.append((ry, 9, w["desc"])); ry -= 22
 
-    # 按视觉行序交错绘制（模拟模板内容流）
+    # 按视觉行序交错绘制（复刻模板内容流≠阅读顺序的形态）
     merged = sorted(left_lines + right_lines, key=lambda t: -t[0])
     for ly, size, text in merged:
         x = 50 if (ly, size, text) in left_lines else 330
@@ -207,17 +197,6 @@ def gen_scanned(path: Path, p: dict) -> None:
     c.save()
 
 
-def degrade_ocr_text(text: str, rng: random.Random) -> str:
-    """模拟 OCR 噪声：少量空格插入 + 个别易混字符替换（固定种子可复现）。"""
-    out = []
-    for ch in text:
-        # 只在中文汉字之间偶发插空格、中文标点转英文——ASCII（电话/邮箱/日期）不动，
-        # 对齐现代 OCR 对数字字母高识别率的真实口径
-        if "\u4e00" <= ch <= "\u9fff" and rng.random() < 0.015:
-            out.append(" ")
-        out.append({"，": ",", "：": ":", "（": "("}.get(ch, ch))
-    s = "".join(out)
-    return s.replace("  ", " ")
 
 
 def gen_docx(path: Path, p: dict) -> None:
@@ -247,8 +226,7 @@ def main() -> None:
     outdir = Path(sys.argv[sys.argv.index("--outdir") + 1]) if "--outdir" in sys.argv else Path("evals")
     corpus = outdir / "corpus"
     gt_dir = outdir / "ground_truth"
-    ocr_dir = outdir / "ocr_fixtures"
-    for d in (corpus, gt_dir, ocr_dir):
+    for d in (corpus, gt_dir):
         d.mkdir(parents=True, exist_ok=True)
 
     rng = random.Random(20261013)
@@ -266,9 +244,6 @@ def main() -> None:
         gen_scanned(corpus / f"scanned-{i:02d}.pdf", p)
         (gt_dir / f"scanned-{i:02d}.json").write_text(
             json.dumps(ground_truth(p), ensure_ascii=False, indent=1), encoding="utf-8")
-        (ocr_dir / f"scanned-{i:02d}.json").write_text(
-            json.dumps({"text": degrade_ocr_text(profile_text(p), rng)}, ensure_ascii=False, indent=1),
-            encoding="utf-8")
     for i, p in enumerate(profiles[:5], 1):
         gen_docx(corpus / f"docx-{i:02d}.docx", p)
         (gt_dir / f"docx-{i:02d}.json").write_text(
@@ -277,7 +252,6 @@ def main() -> None:
     total = len(list(corpus.iterdir()))
     print(f"语料 {total} 份 → {corpus}")
     print(f"ground truth {len(list(gt_dir.iterdir()))} 份 → {gt_dir}")
-    print(f"OCR 回放 {len(list(ocr_dir.iterdir()))} 份 → {ocr_dir}")
 
 
 if __name__ == "__main__":

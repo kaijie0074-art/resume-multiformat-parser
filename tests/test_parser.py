@@ -7,12 +7,15 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from resume_parser.ocr_backend import OcrNotConfiguredError, RecordedOcrBackend  # noqa: E402
+from resume_parser.ocr_backend import OcrNotConfiguredError, pick_configured_backend  # noqa: E402
 from resume_parser.service import parse, parse_baseline  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 CORPUS = ROOT / "evals" / "corpus"
-OCR = RecordedOcrBackend(ROOT / "evals" / "ocr_fixtures")
+REAL_OCR = pick_configured_backend()
+requires_ocr = pytest.mark.skipif(
+    REAL_OCR is None, reason="需要真实 OCR 后端（RESUME_PARSER_PADDLE_URL 或 RESUME_PARSER_VLM_*）"
+)
 
 
 # ---------- 路由 ----------
@@ -28,8 +31,10 @@ def test_路由_双栏文本PDF():
 
 
 def test_路由_图片型PDF判空文本层():
-    r = parse(CORPUS / "scanned-01.pdf", ocr=OCR)
-    assert r.route["text_layer"] == "false" and r.source == "ocr"
+    from resume_parser import router
+
+    d = router.route("scanned-01.pdf", pdf_bytes=(CORPUS / "scanned-01.pdf").read_bytes())
+    assert d.text_layer is False and d.kind == "pdf"
 
 
 def test_路由_不支持类型显式拒绝():
@@ -80,10 +85,12 @@ def test_双栏_页眉通栏不被切分_评审2():
     assert "通栏姓名" in " ".join(w[4] for w in header_words)
     assert len(left) == 2 and len(right) == 2
 
-# ---------- 图片型：OCR 回放与显式失败 ----------
+# ---------- 图片型：真实 OCR 与显式失败 ----------
 
-def test_图片型_OCR回放抽出全部字段():
-    r = parse(CORPUS / "scanned-01.pdf", ocr=OCR)
+@requires_ocr
+def test_图片型_真实OCR抽出全部字段():
+    r = parse(CORPUS / "scanned-01.pdf", ocr=REAL_OCR)
+    assert r.source == "ocr" and r.route["text_layer"] == "false"
     gt = json.loads((ROOT / "evals" / "ground_truth" / "scanned-01.json").read_text(encoding="utf-8"))
     assert r.fields.name == gt["name"]
     assert r.fields.phone == gt["phone"]
@@ -161,7 +168,9 @@ def test_全语料分组F1达标():
     stems = [p.stem for p in CORPUS.iterdir()]
     for prefix, floor in thresholds.items():
         group = [s for s in stems if s.startswith(prefix)]
-        f1, p, r, _ = score_group(group, CORPUS, gt_dir, OCR, "hardened")
+        if prefix == "scanned" and REAL_OCR is None:
+            continue  # 真实 OCR 后端未配置，图片型组不参与离线阈值回归
+        f1, p, r, _ = score_group(group, CORPUS, gt_dir, REAL_OCR, "hardened")
         assert f1 >= floor, f"{prefix} F1={f1:.2f} < {floor}"
 
 
@@ -170,5 +179,5 @@ def test_基线在图片型上F1为零():
     from run_eval import score_group
 
     stems = [p.stem for p in CORPUS.iterdir() if p.stem.startswith("scanned")]
-    f1, *_ = score_group(stems, CORPUS, ROOT / "evals" / "ground_truth", OCR, "baseline")
+    f1, *_ = score_group(stems, CORPUS, ROOT / "evals" / "ground_truth", None, "baseline")
     assert f1 == 0.0, "图片型基线必须抽不出字段（空文本层静默失败是 RPI-002 根源）"

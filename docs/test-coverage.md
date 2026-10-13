@@ -23,7 +23,7 @@
 
 | 场景 | 用例 | 断言 |
 |---|---|---|
-| OCR 回放抽出字段 | test_图片型_OCR回放抽出全部字段 | name/phone/email/school 全对 |
+| 真实 OCR 抽出字段（env-gated） | test_图片型_真实OCR抽出全部字段 | name/phone/email/school 全对；未配置后端自动跳过 |
 | 未配置显式失败 | test_图片型_无OCR后端显式失败不编造 | 抛错含"拒绝静默"+指引 |
 | **基线空文本复现** | test_图片型_基线空文本全空_复现缺陷 | 基线全字段 None |
 
@@ -52,5 +52,5 @@
 ## 明确未覆盖（诚实边界）
 
 - 三栏/杂志版面（design.md D1 声明边界，生产走 OcrBackend 模型位）
-- 真实 PaddleOCR/VLM 服务连通（桩+配置指引已测，实连属生产接入）
+- PaddleOCR/VLM 真实服务的端到端质量评估（接入已就绪，跑通需配置 RESUME_PARSER_PADDLE_URL 或 RESUME_PARSER_VLM_*）
 - 加密/损坏 PDF 的异常路径（上层上传服务的职责范围）

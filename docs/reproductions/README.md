@@ -1,6 +1,6 @@
 # 复现材料
 
-## 快速复现（无需任何 API key/OCR 服务）
+## 快速复现（文本层/docx 路径无需任何外部服务；图片型需配置真实 OCR 后端）
 
 ```bash
 bash scripts/reproduce.sh
@@ -18,7 +18,7 @@ bash scripts/reproduce.sh
 | scanned-NN.pdf | 10 | PIL 位图整页（无文本层） | 手机扫描件 → 空文本层 |
 | docx-NN.docx | 5 | python-docx 表格+合并单元格 | 就业中心表格模板 |
 
-OCR 回放语料（evals/ocr_fixtures/）：真值文本的轻度劣化（汉字间偶发空格、全角标点转半角），模拟现代 OCR 的真实噪声水平；**ASCII（电话/邮箱/日期）保持完整**——对齐真实 OCR 对数字字母的高识别率。
+图片型路径接真实 OCR 后端：自托管 PaddleOCR（`RESUME_PARSER_PADDLE_URL`）或多模态 LLM 直读（`RESUME_PARSER_VLM_API_KEY` + `RESUME_PARSER_VLM_URL`，OpenAI 兼容协议，每页渲染→VLM 转写）。未配置时 run_eval 跳过图片型组并显式标注，parse 直接报错。
 
 ## 基线实跑输出（2026-10-10，v0.1.0）
 
@@ -26,7 +26,7 @@ OCR 回放语料（evals/ocr_fixtures/）：真值文本的轻度劣化（汉字
 |---|---|---|
 | 单栏文本 PDF | 1.00 | 1.00 |
 | 双栏文本 PDF | 0.78 | **1.00** |
-| 图片型 PDF | 0.00 | **0.92** |
+| 图片型 PDF | 0.00 | **0.92**（OCR 路径，配置真实后端后可复跑） |
 | docx 表格 | 1.00 | 1.00 |
 
 **解读**：双栏的 22 个点损失 = 职责错挂（work 三元组配对错）；图片型 0 分 = 空文本层静默失败——若该输出直接喂下游 LLM，就是"基于岗位描述编造整份简历"事故。
@@ -43,4 +43,4 @@ python3 -m pytest tests/ -q
 ## 已知边界
 
 - 双栏检测基于词坐标几何（x0 间隙 + 两侧词量门槛 + 页眉豁免），覆盖"典型两栏设计模板"；三栏/不规则杂志版面不在范围（生产走 R2/R3 路线，见设计文档）
-- RecordedOcrBackend 是 OCR 输出的等价回放；真实 PaddleOCR/VLM 接入为生产接入位（PaddleOcrBackend/VlmOcrBackend 桩 + 配置指引）
+- 图片型路径已接真实后端（Paddle 自托管 / VLM 直读）；端到端 F1 取决于所配服务的识别质量

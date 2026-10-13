@@ -6,8 +6,8 @@
 | RPI-001-b | 双栏交错 | `layout.py`（x0 间隙分界 + 先左后右重排 + 页眉通栏豁免） | feat: 版面感知重排 | `test_双栏_公司A职责不串到公司B`、`test_双栏_页眉通栏不被切分_评审2` |
 | RPI-001-c | 朴素邻近启发式错挂 | `fields.py` v1.0.0（标题过滤 + 二次出现回填；naive 参数保留基线行为） | fix: 经历块启发式 | `test_双栏_基线线性抽取职责错挂_复现缺陷` |
 | RPI-002-a | 图片型静默失败 | `router.route_pdf` 文本层判空（<40 字符） | feat: 文本层判空 | `test_图片型_基线空文本全空_复现缺陷` |
-| RPI-002-b | 无 OCR 显式失败 | `ocr_backend.py`（三实现同接口；未配置抛含配置指引的错误） | feat: OCR 后端抽象 | `test_图片型_无OCR后端显式失败不编造` |
-| RPI-002-c | OCR 回放确定性 | `RecordedOcrBackend` + evals/ocr_fixtures（固定种子劣化） | test: OCR 回放 | `test_图片型_OCR回放抽出全部字段` |
+| RPI-002-b | 无 OCR 显式失败 | `ocr_backend.py`（两真实实现同接口；未配置抛含配置指引的错误） | feat: OCR 后端抽象 | `test_图片型_无OCR后端显式失败不编造` |
+| RPI-002-c | 真实 OCR 后端接入 | `PaddleOcrBackend`（自托管服务）/ `VlmOcrBackend`（多模态 LLM 直读，页级渲染→转写） | feat: 真实 OCR 后端 | `test_图片型_真实OCR抽出全部字段`（env-gated） |
 | RPI-003 | docx 表格粉碎/重复 | `docx_parser.py`（文档流顺序 + 合并单元格按 tc 去重） | fix: docx 去重 | `test_docx_合并单元格不重复`、`test_docx_表格与段落字段齐` |
 | RPI-通用 | 缺失字段无信号 | `confidence.py`（来源层置信度 + needs_manual + warnings） | feat: 置信度与回退 | `test_缺失字段needs_manual与告警`、`test_置信度_来源层与启发式折扣` |
 | L 回归 | 无评估 | `evals/run_eval.py`（35 语料分组 F1 + 错误模式分类）+ 阈值测试 | feat: 字段级评估 | `test_全语料分组F1达标`、`test_基线在图片型上F1为零` |

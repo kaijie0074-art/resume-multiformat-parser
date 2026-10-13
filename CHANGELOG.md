@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [1.1.0] - 2026-10-13
+
+移除全部模拟元素，OCR 路径接真实后端。
+
+- 删除 `RecordedOcrBackend` 与 `evals/ocr_fixtures/` 回放语料及 `generate_corpus.py` 的 OCR 噪声劣化生成
+- `VlmOcrBackend` 从未实现桩改为真实实现：PyMuPDF 页级渲染 → OpenAI 兼容多模态 `/chat/completions` 转写（`RESUME_PARSER_VLM_API_KEY`/`RESUME_PARSER_VLM_URL`/`RESUME_PARSER_VLM_MODEL`）
+- `run_eval.py` 按环境变量选择真实后端；未配置时图片型组显式跳过并在报告标注
+- 图片型字段抽取测试改为 env-gated live 测试；路由判空改为直测 router，离线可跑
+
 ## [1.0.0] - 2026-10-13
 
 合并 PR #1（fix/multiformat → main），负责人验收通过。

@@ -4,10 +4,10 @@
 必须显式失败**——绝不允许"文本为空 → 当作空简历继续"或"让下游 LLM 编造"。
 这条纪律来自问题报告 RPI-002：空文本静默喂给 LLM = 模型基于岗位描述编造整份简历。
 
-三个实现：
-- RecordedOcrBackend：回放 evals/ocr_fixtures/<stem>.json（CI 零依赖确定性路径）
-- PaddleOcrBackend：指向自托管 PP-StructureV3/PaddleOCR 服务的桩（env RESUME_PARSER_PADDLE_URL）
-- VlmOcrBackend：多模态 LLM 直读桩（env RESUME_PARSER_VLM_API_KEY + RESUME_PARSER_VLM_URL）
+两个真实实现：
+- PaddleOcrBackend：自托管 PP-StructureV3/PaddleOCR 服务（env RESUME_PARSER_PADDLE_URL）
+- VlmOcrBackend：多模态 LLM 直读（env RESUME_PARSER_VLM_API_KEY + RESUME_PARSER_VLM_URL，
+  OpenAI 兼容协议；每页渲染 PNG 后送 VLM 转写）
 """
 
 from __future__ import annotations
@@ -30,24 +30,18 @@ class OcrNotConfiguredError(RuntimeError):
     """OCR 后端未配置。信息必须包含配置指引（评审意见 #3）。"""
 
 
-class RecordedOcrBackend(OcrBackend):
-    name = "recorded"
-
-    def __init__(self, fixtures_dir: str | Path):
-        self.fixtures_dir = Path(fixtures_dir)
-
-    def extract(self, pdf_bytes: bytes, stem: str = "") -> str:
-        path = self.fixtures_dir / f"{stem}.json"
-        if not path.exists():
-            raise FileNotFoundError(
-                f"OCR 回放语料缺失: {path}。请先用 evals/generate_corpus.py 生成，"
-                f"或改用 PaddleOcrBackend/VlmOcrBackend 并配置相应环境变量。"
-            )
-        return json.loads(path.read_text(encoding="utf-8"))["text"]
+CONFIG_HINT = (
+    "配置方式：\n"
+    "  自托管 PaddleOCR：export RESUME_PARSER_PADDLE_URL=http://<paddle-service>/predict\n"
+    "  或多模态 LLM 直读：export RESUME_PARSER_VLM_API_KEY=<key> "
+    "RESUME_PARSER_VLM_URL=https://open.bigmodel.cn/api/paas/v4\n"
+    "  （可选 RESUME_PARSER_VLM_MODEL，默认 glm-4v-flash，任意 OpenAI 兼容多模态服务均可）。\n"
+    "在未配置后端时，本服务拒绝静默返回空结果。"
+)
 
 
 class PaddleOcrBackend(OcrBackend):
-    """自托管 PP-StructureV3 服务桩。生产接入：POST pdf → markdown 文本。"""
+    """自托管 PP-StructureV3 服务：POST pdf → markdown 文本。"""
 
     name = "paddle"
 
@@ -57,10 +51,7 @@ class PaddleOcrBackend(OcrBackend):
     def extract(self, pdf_bytes: bytes, stem: str = "") -> str:
         if not self.url:
             raise OcrNotConfiguredError(
-                "图片型 PDF 需要 OCR 后端，但 RESUME_PARSER_PADDLE_URL 未配置。"
-                "配置方式：export RESUME_PARSER_PADDLE_URL=http://<paddle-service>/predict；"
-                "或选择 VlmOcrBackend（RESUME_PARSER_VLM_API_KEY/RESUME_PARSER_VLM_URL）。"
-                "在未配置后端时，本服务拒绝静默返回空结果。"
+                "图片型 PDF 需要 OCR 后端，但 RESUME_PARSER_PADDLE_URL 未配置。\n" + CONFIG_HINT
             )
         import urllib.request
 
@@ -71,22 +62,72 @@ class PaddleOcrBackend(OcrBackend):
             return resp.read().decode("utf-8")
 
 
+# VLM 直读转写指令：要求逐字转写而非摘要，保持阅读顺序，不补全不编造
+_VLM_PROMPT = (
+    "逐字转写这页简历图片中的全部文字，保持从上到下、从左到右的阅读顺序。"
+    "只输出图中真实存在的内容，不要总结、不要补全、不要纠正。"
+)
+
+
 class VlmOcrBackend(OcrBackend):
-    """多模态 LLM 直读桩（每页渲染成图 → VLM）。"""
+    """多模态 LLM 直读：每页渲染成 PNG → OpenAI 兼容 /chat/completions 转写。"""
 
     name = "vlm"
 
     def __init__(self):
         self.api_key = os.environ.get("RESUME_PARSER_VLM_API_KEY", "")
         self.url = os.environ.get("RESUME_PARSER_VLM_URL", "")
+        self.model = os.environ.get("RESUME_PARSER_VLM_MODEL", "glm-4v-flash")
+
+    def _transcribe_page(self, image_png: bytes) -> str:
+        import base64
+        import urllib.request
+
+        b64 = base64.b64encode(image_png).decode("ascii")
+        body = json.dumps(
+            {
+                "model": self.model,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                            {"type": "text", "text": _VLM_PROMPT},
+                        ],
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ).encode("utf-8")
+        req = urllib.request.Request(
+            f"{self.url.rstrip('/')}/chat/completions",
+            data=body,
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {self.api_key}"},
+        )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        return payload["choices"][0]["message"]["content"].strip()
 
     def extract(self, pdf_bytes: bytes, stem: str = "") -> str:
         if not (self.api_key and self.url):
             raise OcrNotConfiguredError(
-                "图片型 PDF 需要 OCR 后端，但 RESUME_PARSER_VLM_API_KEY / RESUME_PARSER_VLM_URL 未配置。"
-                "本服务在未配置后端时拒绝静默返回空结果（防下游 LLM 编造，见 RPI-002）。"
+                "图片型 PDF 需要 OCR 后端，但 RESUME_PARSER_VLM_API_KEY / RESUME_PARSER_VLM_URL 未配置。\n"
+                + CONFIG_HINT
             )
-        raise NotImplementedError(
-            "VLM 直读适配器为生产接入位：渲染-分页-直读实现不属本演练范围，"
-            "演练环境使用 RecordedOcrBackend 等价回放其输出。"
-        )
+        import fitz  # PyMuPDF
+
+        pages: list[str] = []
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
+            for page in doc:
+                pix = page.get_pixmap(dpi=150)
+                pages.append(self._transcribe_page(pix.tobytes("png")))
+        return "\n".join(p for p in pages if p)
+
+
+def pick_configured_backend() -> OcrBackend | None:
+    """按环境变量返回已配置的真实 OCR 后端；均未配置返回 None（由调用方决定报错/跳过）。"""
+    if os.environ.get("RESUME_PARSER_PADDLE_URL"):
+        return PaddleOcrBackend()
+    if os.environ.get("RESUME_PARSER_VLM_API_KEY") and os.environ.get("RESUME_PARSER_VLM_URL"):
+        return VlmOcrBackend()
+    return None

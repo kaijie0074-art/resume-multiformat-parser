@@ -45,8 +45,9 @@ def parse(path: str | Path, ocr: OcrBackend | None = None) -> ParseResult:
 
             raise OcrNotConfiguredError(
                 "图片型 PDF 需要 OCR 后端（未配置时拒绝静默继续，防下游 LLM 编造）。"
-                "演练环境传入 RecordedOcrBackend(eval/ocr_fixtures)；"
-                "生产配置 RESUME_PARSER_PADDLE_URL 或 RESUME_PARSER_VLM_*。"
+                "配置 RESUME_PARSER_PADDLE_URL（自托管 PaddleOCR）或 "
+                "RESUME_PARSER_VLM_API_KEY + RESUME_PARSER_VLM_URL（多模态 LLM 直读），"
+                "或显式传入已配置的 OcrBackend 实例。"
             )
         text = ocr.extract(data, stem=stem)
         source = "ocr"

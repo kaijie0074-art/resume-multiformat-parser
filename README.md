@@ -1,8 +1,8 @@
 # resume-multiformat-parser
 
-**简历多格式解析路由**——上传入口的第一公里：文本层判空、双栏版面重排、docx 表格去重、OCR 后端抽象与字段级 F1 评估。针对"图片型 PDF 空文本静默喂 LLM → 模型编造整份简历"、"双栏模板左右交错 → 职责挂错公司"这两类入口级事故的确定性演练。
+**简历多格式解析路由**——上传入口的第一公里：文本层判空、双栏版面重排、docx 表格去重、OCR 后端抽象与字段级 F1 评估。针对"图片型 PDF 空文本静默喂 LLM → 模型编造整份简历"、"双栏模板左右交错 → 职责挂错公司"这两类入口级事故的工程加固。
 
-> **演练声明**：35 份语料全部程序合成（固定种子，无真实 PII）；OCR 路径用回放语料等价模拟（RecordedOcrBackend），不连接真实模型服务；上游开源项目（PP-StructureV3/PyMuPDF/pdfplumber/docling/OpenResume）仅作机制引用，见 [docs/open-source-references.md](docs/open-source-references.md)。
+> 语料说明：35 份评估语料全部程序合成（固定种子，无真实 PII）；OCR 路径接真实后端——自托管 PaddleOCR（`RESUME_PARSER_PADDLE_URL`）或多模态 LLM 直读（`RESUME_PARSER_VLM_API_KEY` + `RESUME_PARSER_VLM_URL`，OpenAI 兼容协议），未配置时显式失败、拒绝静默返回空结果。上游开源项目（PP-StructureV3/PyMuPDF/pdfplumber/docling/OpenResume）仅作机制引用，见 [docs/open-source-references.md](docs/open-source-references.md)。
 
 ## 为什么值得看
 
@@ -30,7 +30,7 @@ python3 scripts/check_artifacts.py # 工件自检
 上传 → router（可解释决策：kind / text_layer / layout + reason）
   ├─ 单栏 PDF → 词坐标行聚类
   ├─ 双栏 PDF → x0 间隙分界 → 先左后右重排（页眉通栏豁免）
-  ├─ 图片型  → OcrBackend（回放 / Paddle / VLM 三实现同接口；未配置显式失败）
+  ├─ 图片型  → OcrBackend（Paddle / VLM 两真实实现同接口；未配置显式失败）
   └─ .docx   → 段落+表格流（合并单元格去重）
        ↓
   fields 规则抽取（缺失=None，绝不推测）→ confidence（来源层先验）→ needs_manual 回退用户补全

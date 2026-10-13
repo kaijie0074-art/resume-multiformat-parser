@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from resume_parser.ocr_backend import RecordedOcrBackend
+from resume_parser.ocr_backend import OcrBackend, pick_configured_backend
 from resume_parser.service import parse, parse_baseline
 
 GROUPS = {"single": "单栏文本 PDF", "two-col": "双栏文本 PDF", "scanned": "图片型 PDF", "docx": "docx 表格"}
@@ -63,7 +63,7 @@ def _norm_set(s: set):
     return {_norm_tuple(t) if isinstance(t, tuple) else _norm(t) for t in s}
 
 
-def score_group(stems: list[str], corpus: Path, gt_dir: Path, ocr: RecordedOcrBackend, mode: str):
+def score_group(stems: list[str], corpus: Path, gt_dir: Path, ocr: OcrBackend | None, mode: str):
     """返回 (micro-F1, 错误模式计数 dict, 每份明细)。"""
     tp = fp = fn = 0
     error_modes: dict[str, int] = {}
@@ -118,7 +118,7 @@ def main() -> None:
     root = Path(__file__).resolve().parent.parent
     corpus = root / "evals" / "corpus"
     gt_dir = root / "evals" / "ground_truth"
-    ocr = RecordedOcrBackend(root / "evals" / "ocr_fixtures")
+    ocr = pick_configured_backend()
 
     files = sorted(corpus.iterdir())
     stems = [f.stem for f in files]
@@ -133,6 +133,11 @@ def main() -> None:
     summary = {}
     for prefix, label in GROUPS.items():
         group_stems = [s for s in stems if s.startswith(prefix)]
+        if prefix == "scanned" and ocr is None:
+            print(f"[跳过] 图片型 PDF 组需要真实 OCR 后端（RESUME_PARSER_PADDLE_URL 或 RESUME_PARSER_VLM_*），当前未配置")
+            lines.append(f"| {label} | {len(group_stems)} | - | - | - | - | - | 未配置 OCR 后端，跳过 |")
+            summary[prefix] = {"skipped": "no-ocr-backend"}
+            continue
         bf1, bp, br, _ = score_group(group_stems, corpus, gt_dir, ocr, "baseline")
         hf1, hp, hr, hem = score_group(group_stems, corpus, gt_dir, ocr, "hardened")
         lines.append(f"| {label} | {len(group_stems)} | {bp:.2f} | {br:.2f} | {bf1:.2f} | {hp:.2f} | {hr:.2f} | {hf1:.2f} |")
@@ -144,7 +149,7 @@ def main() -> None:
     lines.append("| 类别 | 模式 | 计数 |")
     lines.append("|---|---|---|")
     for prefix, label in GROUPS.items():
-        for mode, n in sorted(summary[prefix]["hardened_error_modes"].items()):
+        for mode, n in sorted(summary[prefix].get("hardened_error_modes", {}).items()):
             lines.append(f"| {label} | {mode} | {n} |")
 
     report = "\n".join(lines) + "\n"

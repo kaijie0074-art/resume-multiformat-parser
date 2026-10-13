@@ -168,6 +168,34 @@ def gen_two_col(path: Path, p: dict) -> None:
     c.save()
 
 
+_CJK_FONT_CANDIDATES = [
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/System/Library/Fonts/STHeiti Light.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/Library/Fonts/Arial Unicode.ttf",
+    "/System/Library/Fonts/Supplemental/Songti.ttc",
+]
+
+
+def _load_cjk_font():
+    """按候选顺序解析系统 CJK 字体；全部失败时显式报错而非静默降级。
+
+    静默 fallback（load_default 无 CJK 字形）会生成"标签在、值缺失"的
+    图片型语料，与 ground_truth 系统性不匹配（2026-10-13 实测踩坑）。
+    """
+    for path in _CJK_FONT_CANDIDATES:
+        try:
+            ImageFont.truetype(path, 22)
+            return lambda size, _p=path: ImageFont.truetype(_p, size)
+        except OSError:
+            continue
+    raise RuntimeError(
+        "未找到可用 CJK 字体（候选：PingFang/Hiragino/STHeiti/Arial Unicode/Songti）。"
+        "图片型语料需要中文字形，拒绝静默生成与真值不匹配的残缺语料。"
+    )
+
+
 def gen_scanned(path: Path, p: dict) -> None:
     """图片型 PDF：位图整页（无文本层）。"""
     from reportlab.lib.utils import ImageReader
@@ -176,11 +204,9 @@ def gen_scanned(path: Path, p: dict) -> None:
 
     img = Image.new("RGB", (1190, 1684), "white")
     d = ImageDraw.Draw(img)
-    try:
-        font_big = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 36)
-        font = ImageFont.truetype("/System/Library/Fonts/PingFang.ttc", 22)
-    except OSError:
-        font_big = font = ImageFont.load_default()
+    cjk = _load_cjk_font()
+    font_big = cjk(36)
+    font = cjk(22)
     y = 60
     d.text((50, y), p["name"], fill="black", font=font_big); y += 56
     d.text((50, y), f"电话 {p['phone']}  邮箱 {p['email']}", fill="black", font=font); y += 44

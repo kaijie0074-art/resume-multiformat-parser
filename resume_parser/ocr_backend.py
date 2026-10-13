@@ -69,6 +69,16 @@ _VLM_PROMPT = (
 )
 
 
+def _is_tofu_score(text: str) -> int:
+    """豆腐块（□ U+25A1 / 替换字符 U+FFFD）计数，用于择优。"""
+    return text.count("\u25a1") + text.count("\ufffd")
+
+
+def _is_tofu(text: str) -> bool:
+    """成片豆腐块判定：≥10 个即认为转写质量不可用（正常转写不出现该字符）。"""
+    return _is_tofu_score(text) >= 10
+
+
 class VlmOcrBackend(OcrBackend):
     """多模态 LLM 直读：每页渲染成 PNG → OpenAI 兼容 /chat/completions 转写。"""
 
@@ -119,8 +129,13 @@ class VlmOcrBackend(OcrBackend):
         pages: list[str] = []
         with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
             for page in doc:
-                pix = page.get_pixmap(dpi=150)
-                pages.append(self._transcribe_page(pix.tobytes("png")))
+                text = self._transcribe_page(page.get_pixmap(dpi=150).tobytes("png"))
+                if _is_tofu(text):
+                    # 端点图片预处理非确定：偶发中文成片丢失（2026-10-13 实测）。
+                    # 升档到 180dpi 重试一次自愈；仍失败则如实保留（路由层兜底）。
+                    retry = self._transcribe_page(page.get_pixmap(dpi=180).tobytes("png"))
+                    text = retry if not _is_tofu(retry) else min(text, retry, key=_is_tofu_score)
+                pages.append(text)
         return "\n".join(p for p in pages if p)
 
 

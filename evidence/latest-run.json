@@ -10,7 +10,14 @@
   "hardened_error_modes": {}
  },
  "scanned": {
-  "skipped": "no-ocr-backend"
+  "baseline_f1": 0.0,
+  "hardened_f1": 0.778,
+  "hardened_error_modes": {
+   "work": 15,
+   "work_fp": 15,
+   "name": 1,
+   "scalar_extra": 1
+  }
  },
  "docx": {
   "baseline_f1": 1.0,
